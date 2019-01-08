@@ -1,0 +1,25 @@
+{
+  "name": "GameServer",
+  "version": "1.0.0",
+  "description": "MurderGame game server",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MurderGame/GameServer.git"
+  },
+  "keywords": [],
+  "author": "Ethan Davis",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/MurderGame/GameServer/issues"
+  },
+  "homepage": "https://github.com/MurderGame/GameServer#readme",
+  "dependencies": {
+    "gar": "^1.0.4",
+    "protocore": "^1.2.2"
+  }
+}
