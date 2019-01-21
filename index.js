@@ -69,8 +69,7 @@ const server = net.createServer((socket) => {
 			'y': 200,
 			'width': 30,
 			'height': 30,
-			'backgroundColor': randomColor(),
-			'borderColor': null
+			'backgroundColor': randomColor()
 		})
 	}
 	
