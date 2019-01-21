@@ -3,7 +3,7 @@ const net = require('net')
 
 const args = require('gar')(process.argv.slice(2))
 
-const canvax = require(path.join(__dirname, 'canvax_module.js'))
+const canvax = require('canvaxjs')
 const commonAbstractorFactory = require(path.join(__dirname, 'commonAbstractorFactory.js'))
 
 let clients = []
@@ -24,7 +24,13 @@ const addEnemy = () => {
 		'direction': direction,
 		'xspeed': direction === 0 ? 1 : 0,
 		'yspeed': direction === 1 ? 1 : 0,
-		'entity': new canvax.Circle(x, y, 30, '#FF5546', 'none')
+		'entity': new canvax.Circle({
+			'x': x,
+			'y': y,
+			'radius': 30,
+			'backgroundColor': '#FF5546',
+			'borderColor': null
+		})
 	})
 }
 
@@ -58,7 +64,14 @@ const server = net.createServer((socket) => {
 			'x': 0,
 			'y': 0
 		},
-		'entity': new canvax.Rectangle(200, 200, 30, 30, randomColor(), 'none')
+		'entity': new canvax.Rectangle({
+			'x': 200,
+			'y': 200,
+			'width': 30,
+			'height': 30,
+			'backgroundColor': randomColor(),
+			'borderColor': null
+		})
 	}
 	
 	socket.pipe(socket.abstractor)
@@ -155,7 +168,7 @@ setInterval(() => {
 		for (let i = 0; i < gameState.enemies.length; i++) {
 			const enemy = gameState.enemies[i]
 			
-			if (enemy.entity.intersects(client.data.entity)) {
+			if (enemy.entity.touches(client.data.entity)) {
 				client.data.score = 0
 				
 				client.data.entity.x = 100
