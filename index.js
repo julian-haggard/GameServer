@@ -4,12 +4,15 @@ const net = require('net')
 const args = require('gar')(process.argv.slice(2))
 
 const canvax = require('canvaxjs')
+const eucli = require('eucli')
+
 const commonAbstractorFactory = require(path.join(__dirname, 'commonAbstractorFactory.js'))
 
 let clients = []
 
 const gameState = {
 	'enemies': [],
+	'powerups': [],
 	'width': 1280,
 	'height': 720
 }
@@ -22,13 +25,13 @@ const addEnemy = () => {
 	
 	gameState.enemies.push({
 		'direction': direction,
-		'xspeed': direction === 0 ? 1 : 0,
-		'yspeed': direction === 1 ? 1 : 0,
+		'xspeed': direction === 0 ? 2 : 0,
+		'yspeed': direction === 1 ? 2 : 0,
 		'entity': new canvax.Circle({
 			'x': x,
 			'y': y,
 			'radius': 30,
-			'backgroundColor': '#FF5546',
+			'backgroundColor': '#DF5A49',
 			'borderColor': null
 		})
 	})
@@ -38,76 +41,125 @@ for (let i = 0; i < 5; i++) {
 	addEnemy()
 }
 
-const randomHex = () => Math.floor(Math.random() * 17).toString(16).toUpperCase()
-
-const randomColor = () => {
-	let build = '#'
+const findSafeLocation = () => {
+	let safe = false
+	let loc = []
 	
-	for (let i = 0; i < 6; i++) {
-		build += randomHex()
+	while (safe === false) {
+		loc = [Math.floor(Math.random() * (gameState.width - 30)), Math.floor(Math.random() * (gameState.height - 65))]
+		
+		safe = true
+		
+		for (let i = 0; i < gameState.enemies.length; i++) {
+			if (eucli(loc, [gameState.enemies[i].entity.x, gameState.enemies[i].entity.y]) < 150) {
+				safe = false
+			}
+		}
 	}
 	
-	return build
+	return loc
 }
 
-const server = net.createServer((socket) => {
+const addPowerUp = () => {
+	const pos = findSafeLocation()
+	
+	gameState.powerups.push({
+		'xspeed': 0,
+		'yspeed': 0,
+		'entity': new canvax.Circle({
+			'x': pos[0],
+			'y': pos[1],
+			'radius': 15,
+			'backgroundColor': '#2ED069'
+		})
+	})
+}
+
+const playerColors = ['#4EBA6F', '#2D95BF', '#955BA5', '#334D5C', '#45B29D']
+
+const randomColor = () => playerColors[Math.floor(Math.random() * playerColors.length)]
+
+const server = net.createServer((client) => {
 	console.log('A client connected.')
 	
 	const abstractor = commonAbstractorFactory()
 	
-	socket.abstractor = abstractor
+	client.abstractor = abstractor
 	
-	socket.data = {
+	const spawnSafeLoc = findSafeLocation()
+	
+	client.data = {
 		'keys': [],
 		'score': 0,
 		'vel': {
 			'x': 0,
 			'y': 0
 		},
+		'dead': false,
 		'entity': new canvax.Rectangle({
-			'x': 200,
-			'y': 200,
+			'x': spawnSafeLoc[0],
+			'y': spawnSafeLoc[1],
 			'width': 30,
 			'height': 30,
 			'backgroundColor': randomColor()
 		})
 	}
 	
-	socket.pipe(socket.abstractor)
-	abstractor.pipe(socket)
+	client.pipe(client.abstractor)
+	abstractor.pipe(client)
 	
-	clients.push(socket)
+	clients.push(client)
 	
-	socket.on('close', () => {
+	client.on('close', () => {
 		console.log('A client disconnected.')
 		
-		clients.splice(clients.indexOf(socket), 1)
+		clients.splice(clients.indexOf(client), 1)
 	})
 	
-	socket.on('error', (err) => {
+	client.on('error', (err) => {
 		console.log('A client errored. ' + err)
 	})
 	
 	abstractor.on('profile', (data) => {
-		socket.data.name = data.name
+		client.data.name = data.name
 	})
 	
 	abstractor.on('keydown', (data) => {
 		data.key = data.key.toLowerCase()
 		
-		if (!socket.data.keys.includes(data.key)) socket.data.keys.push(data.key)
+		if (!client.data.keys.includes(data.key)) client.data.keys.push(data.key)
 	})
 
 	abstractor.on('keyup', (data) => {
 		data.key = data.key.toLowerCase()
 		
-		if (socket.data.keys.includes(data.key)) socket.data.keys.splice(socket.data.keys.indexOf(data.key), 1)
+		if (client.data.keys.includes(data.key)) client.data.keys.splice(client.data.keys.indexOf(data.key), 1)
+	})
+
+	abstractor.on('respawn', () => {
+		if (client.data.dead === false) return
+		
+		console.log('Client respawns')
+		
+		client.data.score = 0
+		
+		const safeLoc = findSafeLocation()
+				
+		client.data.entity.x = safeLoc[0]
+		client.data.entity.y = safeLoc[1]
+		
+		client.data.vel.x = 0
+		client.data.vel.y = 0
+		
+		client.data.dead = false
 	})
 })
 
 server.listen(5135, () => {
 	console.log('Listening.')
 })
+
+addPowerUp()
 
 setInterval(() => {
 	// Update enemy data
@@ -128,6 +180,10 @@ setInterval(() => {
 	for (let i = 0; i < clients.length; i++) {
 		const client = clients[i]
 		
+		if (typeof client.data !== 'object') continue
+		
+		if (client.data.dead === true) continue
+		
 		if (client.data.keys.includes('arrowup')) {
 			client.data.vel.y += -0.4
 		}
@@ -145,10 +201,10 @@ setInterval(() => {
 		}
 		
 		if (client.data.entity.x < 0 && client.data.vel.x < 0) client.data.vel.x = 0
-		if (client.data.entity.x > gameState.width - 90 && client.data.vel.x > 0) client.data.vel.x = 0
+		if (client.data.entity.x > gameState.width - 30 && client.data.vel.x > 0) client.data.vel.x = 0
 			
 		if (client.data.entity.y < 0 && client.data.vel.y < 0) client.data.vel.y = 0
-		if (client.data.entity.y > gameState.height - 90 && client.data.vel.y > 0) client.data.vel.y = 0
+		if (client.data.entity.y > gameState.height - 65 && client.data.vel.y > 0) client.data.vel.y = 0
 		
 		client.data.vel.y *= 0.91
 		client.data.vel.x *= 0.91
@@ -164,14 +220,35 @@ setInterval(() => {
 		
 		if (typeof client.data !== 'object') continue
 		
+		if (client.data.dead === true) continue
+		
+		// Enemy collisions
+		
 		for (let i = 0; i < gameState.enemies.length; i++) {
 			const enemy = gameState.enemies[i]
 			
 			if (enemy.entity.touches(client.data.entity)) {
-				client.data.score = 0
+				client.data.dead = true
 				
-				client.data.entity.x = 100
-				client.data.entity.y = 100
+				setTimeout(() => {
+					client.abstractor.send('dead', {})
+				}, 1500)
+			}
+		}
+		
+		// Powerup collisions
+		
+		for (let i = 0; i < gameState.powerups.length; i++) {
+			const powerup = gameState.powerups[i]
+			
+			if (powerup.entity.touches(client.data.entity)) {
+				client.data.score += 1
+				
+				gameState.powerups.splice(i, 1)
+				
+				addPowerUp()
+				
+				console.log('Powerup collected by ' + client.data.name)
 			}
 		}
 	}
@@ -188,6 +265,8 @@ setInterval(() => {
 		const client = clients[i]
 		
 		if (typeof client.data !== 'object') continue
+		
+		if (client.data.dead === true) continue
 		
 		renderData.entities.push({
 			'type': 0,
@@ -206,6 +285,24 @@ setInterval(() => {
 	
 	for (let i = 0; i < gameState.enemies.length; i++) {
 		const enemy = gameState.enemies[i]
+		
+		renderData.entities.push({
+			'type': 1,
+			'color': enemy.entity.backgroundColor,
+			'x': enemy.entity.x,
+			'y': enemy.entity.y,
+			'width': enemy.entity.radius,
+			'height': enemy.entity.radius,
+			'xvel': enemy.xspeed,
+			'yvel': enemy.yspeed,
+			'name': ''
+		})
+	}
+	
+	// Render powerups
+	
+	for (let i = 0; i < gameState.powerups.length; i++) {
+		const enemy = gameState.powerups[i]
 		
 		renderData.entities.push({
 			'type': 1,

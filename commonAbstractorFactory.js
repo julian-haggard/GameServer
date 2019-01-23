@@ -75,6 +75,10 @@ module.exports = () => {
 			'type': 'string'
 		}
 	]))
+	
+	build.register('dead', new Schema([]))
+	
+	build.register('respawn', new Schema([]))
 
 	return build
 }

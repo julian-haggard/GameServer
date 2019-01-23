@@ -20,6 +20,7 @@
   "homepage": "https://github.com/MurderGame/GameServer#readme",
   "dependencies": {
     "canvaxjs": "^0.6.0",
+    "eucli": "^1.0.3",
     "gar": "^1.0.4",
     "protocore": "^1.2.2"
   }
