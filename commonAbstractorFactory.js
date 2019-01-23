@@ -61,6 +61,17 @@ module.exports = () => {
 			'type': 'string'
 		}
 	]))
+
+	build.register('chat', new Schema([
+		{
+			'name': 'message',
+			'type': 'string'
+		},
+		{
+			'name': 'from',
+			'type': 'string'
+		}
+	]))
 	
 	build.register('keyup', new Schema([
 		{

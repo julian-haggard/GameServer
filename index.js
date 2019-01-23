@@ -123,6 +123,17 @@ const server = net.createServer((client) => {
 	abstractor.on('profile', (data) => {
 		client.data.name = data.name
 	})
+
+	abstractor.on('chat', (data) => {
+		for (let i = 0; i < clients.length; i++) {
+			if (clients[i].abstractor) {
+				clients[i].abstractor.send('chat', {
+					'message': data.message,
+					'from': client.data.name
+				})
+			}
+		}
+	})
 	
 	abstractor.on('keydown', (data) => {
 		data.key = data.key.toLowerCase()
